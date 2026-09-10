@@ -1,167 +1,105 @@
-<!doctype html>
-<html lang="zh-Hant">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#132f29" />
-    <meta name="description" content="涵蓋多益 500～990 分常用字彙的英文單字學習 App，支援情境分類、例句與語音朗讀。" />
-    <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="./icon-192.png" />
-    <title>Word Sprout 英文單字</title>
-    <link rel="stylesheet" href="./styles.css" />
-  </head>
-  <body>
-    <div class="app-shell">
-      <header class="topbar">
-        <a class="brand" href="#learn" aria-label="Word Sprout 首頁">
-          <span class="brand-mark" aria-hidden="true">W</span>
-          <span><strong>Word Sprout</strong><small>TOEIC 500–990</small></span>
-        </a>
-        <div class="header-actions">
-          <button class="icon-button" id="rateButton" type="button" aria-label="切換朗讀速度" title="切換朗讀速度">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Zm12.5 3a3.5 3.5 0 0 0-1.7-3v6a3.5 3.5 0 0 0 1.7-3Z"/><path d="M15 5.2v2.1a5.5 5.5 0 0 1 0 9.4v2.1a7.5 7.5 0 0 0 0-13.6Z"/></svg>
-            <span id="rateLabel">0.85×</span>
-          </button>
-          <button class="install-button" id="installButton" type="button" hidden>安裝 App</button>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>多益單字隨身卡</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <!-- PWA：可安裝、離線 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#27ae60">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="多益單字">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+</head>
+<body class="theme-green">
+    <div class="container">
+        <!-- 等級選擇器 -->
+        <div class="level-selector">
+            <button onclick="setLevel('green')" id="btn-green" class="active">綠色</button>
+            <button onclick="setLevel('blue')" id="btn-blue">藍色</button>
+            <button onclick="setLevel('gold')" id="btn-gold">金色</button>
         </div>
-      </header>
 
-      <main>
-        <section class="view active" id="learnView" data-view="learn" aria-labelledby="learnTitle">
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow" id="todayLabel">今日學習</p>
-              <h1 id="learnTitle">先聽，再記住</h1>
+        <!-- 單字卡片 -->
+        <div class="card" id="word-card">
+            <div class="card-header">
+                <h1 id="word">Loading...</h1>
+                <div class="header-tools">
+                    <span id="pos" class="badge">POS</span>
+                    <button onclick="speak()" class="speak-btn" title="朗讀單字" aria-label="播放語音">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                        </svg>
+                    </button>
+                    <button onclick="speakAll()" class="speak-btn speak-all" title="朗讀全卡片" aria-label="朗讀全卡片">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                            <path d="M3 10h11v2H3v-2zm0-4h11v2H3V6zm0 8h7v2H3v-2zm13-1v8l7-4-7-4z"/>
+                        </svg>
+                    </button>
+                    <button onclick="markAsLearned()" class="learned-btn" title="標記為已學會" aria-label="標記為已學會">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                    </button>
+                </div>
+                <p id="phonetic" class="phonetic">/ phonetic /</p>
             </div>
-            <div class="mini-progress" aria-label="學習進度">
-              <span id="learnedCount">0</span><span class="slash">/</span><span id="totalCount">4,334</span>
+            
+            <div class="card-body">
+                <div class="section">
+                    <h3>中文解釋</h3>
+                    <p id="meaning" class="meaning">點擊下方按鈕開始學習</p>
+                </div>
+
+                <div class="section">
+                    <h3>片語 / 搭配詞</h3>
+                    <ul id="phrases" class="list"></ul>
+                </div>
+
+                <div class="grid-section">
+                    <div>
+                        <h3>同義詞</h3>
+                        <p id="synonyms">-</p>
+                    </div>
+                    <div>
+                        <h3>反義詞</h3>
+                        <p id="antonyms">-</p>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>例句</h3>
+                    <p id="example" class="example"></p>
+                    <p id="example-zh" class="example-zh"></p>
+                </div>
             </div>
-          </div>
+        </div>
 
-          <div class="topic-row" id="topicFilters" role="group" aria-label="單字分類"></div>
+        <!-- 操作區 -->
+        <div class="actions">
+            <button onclick="nextWord()" class="next-btn">下一個單字</button>
+            <button onclick="toggleImmersive()" id="immersive-btn" class="immersive-btn">開始沉浸朗讀</button>
+        </div>
 
-          <article class="word-card" id="wordCard" aria-live="polite">
-            <div class="card-topline">
-              <span class="topic-badge" id="wordTopic">工作與辦公室</span>
-              <span class="word-number" id="wordNumber">01 / 4,334</span>
-            </div>
-            <div class="word-heading">
-              <div>
-                <h2 id="wordText">agenda</h2>
-                <p class="word-meta"><span id="wordPos">n.</span><span id="wordMeaning">議程</span></p>
-              </div>
-              <button class="speak-button primary" id="speakWord" type="button" aria-label="朗讀單字">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Zm12.5 3a3.5 3.5 0 0 0-1.7-3v6a3.5 3.5 0 0 0 1.7-3Z"/><path d="M15 5.2v2.1a5.5 5.5 0 0 1 0 9.4v2.1a7.5 7.5 0 0 0 0-13.6Z"/></svg>
-              </button>
-            </div>
-
-            <div class="example-block">
-              <div class="example-header">
-                <span>EXAMPLE</span>
-                <button class="speak-link" id="speakExample" type="button">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Zm12.5 3a3.5 3.5 0 0 0-1.7-3v6a3.5 3.5 0 0 0 1.7-3Z"/></svg>
-                  朗讀例句
-                </button>
-              </div>
-              <p class="example-en" id="exampleEn">Please check the agenda before the meeting.</p>
-              <p class="example-zh" id="exampleZh">開會前請先查看議程。</p>
-            </div>
-
-            <div class="card-actions">
-              <button class="action secondary" id="againButton" type="button">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8v-6m0 6h6"/></svg>
-                還不熟
-              </button>
-              <button class="action success" id="learnedButton" type="button">
-                記住了
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>
-              </button>
-            </div>
-          </article>
-
-          <button class="shuffle-button" id="shuffleButton" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3h5v5M4 20l5.5-5.5M21 16v5h-5M4 4l16 16M15 9l6-6"/></svg>
-            隨機換一個單字
-          </button>
-        </section>
-
-        <section class="view" id="quizView" data-view="quiz" aria-labelledby="quizTitle" hidden>
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">快速測驗</p>
-              <h1 id="quizTitle">選出正確意思</h1>
-            </div>
-            <div class="quiz-score"><span id="quizScore">0</span> / <span id="quizTotal">0</span></div>
-          </div>
-
-          <article class="quiz-card">
-            <div class="quiz-prompt">
-              <span id="quizTopic" class="topic-badge">工作與辦公室</span>
-              <button class="speak-button small" id="speakQuizWord" type="button" aria-label="朗讀題目單字">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Zm12.5 3a3.5 3.5 0 0 0-1.7-3v6a3.5 3.5 0 0 0 1.7-3Z"/></svg>
-              </button>
-              <h2 id="quizWord">confirm</h2>
-              <p id="quizPos">v.</p>
-            </div>
-            <div class="answer-list" id="answerList"></div>
-            <div class="quiz-feedback" id="quizFeedback" hidden></div>
-            <button class="action success next-question" id="nextQuestion" type="button" hidden>下一題</button>
-          </article>
-        </section>
-
-        <section class="view" id="progressView" data-view="progress" aria-labelledby="progressTitle" hidden>
-          <div class="section-heading">
-            <div>
-              <p class="eyebrow">我的學習紀錄</p>
-              <h1 id="progressTitle">每個字都算數</h1>
-            </div>
-          </div>
-
-          <div class="stats-grid">
-            <article class="stat-card accent"><span class="stat-label">已記住</span><strong id="statLearned">0</strong><small>個單字</small></article>
-            <article class="stat-card"><span class="stat-label">待複習</span><strong id="statReview">0</strong><small>個單字</small></article>
-            <article class="stat-card"><span class="stat-label">測驗正確率</span><strong id="statAccuracy">—</strong><small id="statQuizDetail">尚未測驗</small></article>
-          </div>
-
-          <article class="category-card">
-            <h2>各分類進度</h2>
-            <div id="categoryProgress"></div>
-          </article>
-
-          <button class="reset-button" id="resetButton" type="button">重設所有學習進度</button>
-        </section>
-      </main>
-
-      <nav class="bottom-nav" aria-label="主要選單">
-        <button class="nav-item active" type="button" data-target="learn">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4Zm0 12.8A3 3 0 0 1 8 14h11M9 8h6"/></svg>
-          <span>學單字</span>
-        </button>
-        <button class="nav-item" type="button" data-target="quiz">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v4H7zM5 5H3v16h18V5h-2M8 12l2 2 5-5M8 18h8"/></svg>
-          <span>測驗</span>
-        </button>
-        <button class="nav-item" type="button" data-target="progress">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
-          <span>進度</span>
-        </button>
-      </nav>
+        <!-- 統計與重設區 -->
+        <div class="footer-info">
+            <span id="progress-text">進度：載入中...</span>
+            <button onclick="resetProgress()" class="reset-link">重設進度</button>
+        </div>
     </div>
 
-    <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <dialog id="resetDialog">
-      <form method="dialog">
-        <h2>重設學習進度？</h2>
-        <p>所有「已記住」、「待複習」和測驗紀錄都會清除。</p>
-        <div class="dialog-actions">
-          <button value="cancel" class="action secondary">取消</button>
-          <button value="confirm" class="action danger">確定重設</button>
-        </div>
-      </form>
-    </dialog>
-
-    <script src="./vocab-data.js" defer></script>
-    <script src="./app.js" defer></script>
-  </body>
+    <script src="script.js"></script>
+    <script>
+        // 註冊 Service Worker（離線快取）；相對路徑使 scope 落在本專案子路徑
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('sw.js').catch(function () { /* 忽略註冊失敗 */ });
+            });
+        }
+    </script>
+</body>
 </html>
