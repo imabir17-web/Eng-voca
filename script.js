@@ -6,6 +6,11 @@ let cachedWords = {
 let currentLevel = 'green';
 let currentWord = null;
 let learnedWords = JSON.parse(localStorage.getItem('toeic_learned_words') || '[]');
+let wordHistory = [];
+let historyIndex = -1;
+let hintTimer = null;
+let fitFrame = null;
+const MAX_WORD_HISTORY = 100;
 
 // 初始化：讀取上次存儲的等級並載入
 async function init() {
@@ -28,8 +33,11 @@ function updateProgressUI() {
 
 // 設定等級並動態下載單字
 async function setLevel(level) {
-    stopImmersive();
+    stopForManualNavigation();
     currentLevel = level;
+    currentWord = null;
+    wordHistory = [];
+    historyIndex = -1;
     localStorage.setItem('toeic_level', level);
 
     // 更新 UI 狀態
@@ -70,8 +78,8 @@ function advanceWord() {
     if (availableWords.length === 0) {
         document.getElementById('word').innerText = "恭喜完成！";
         document.getElementById('meaning').innerText = "此等級所有單字已學完。";
-        document.getElementById('phonetic').innerText = "";
         document.getElementById('pos').innerText = "Done";
+        fitCardToViewport();
         return false;
     }
 
@@ -86,19 +94,62 @@ function advanceWord() {
     }
 
     currentWord = availableWords[randomIndex];
+    rememberWord(currentWord);
     displayWord(currentWord);
     return true;
 }
 
-// 使用者手動點「下一個單字」：會先停止沉浸模式
+// 將瀏覽過的單字保留在記錄中，方便向右滑回上一張。
+function rememberWord(word) {
+    if (!word) return;
+
+    // 從歷史中間抽新字時，捨棄原本的前進分支。
+    if (historyIndex < wordHistory.length - 1) {
+        wordHistory = wordHistory.slice(0, historyIndex + 1);
+    }
+    if (wordHistory[historyIndex] && wordHistory[historyIndex].word === word.word) return;
+
+    wordHistory.push(word);
+    if (wordHistory.length > MAX_WORD_HISTORY) wordHistory.shift();
+    historyIndex = wordHistory.length - 1;
+}
+
+function showHistoryWord(index, direction) {
+    const word = wordHistory[index];
+    if (!word || learnedWords.includes(word.word)) return false;
+    historyIndex = index;
+    currentWord = word;
+    displayWord(currentWord);
+    animateCard(direction);
+    return true;
+}
+
+function stopForManualNavigation() {
+    if (immersive.active) stopImmersive();
+    else cancelSpeech();
+}
+
+// 下一個：若剛看過上一張，先沿原記錄往前；否則隨機抽新字。
 function nextWord() {
-    stopImmersive();
-    advanceWord();
+    stopForManualNavigation();
+    for (let i = historyIndex + 1; i < wordHistory.length; i++) {
+        if (showHistoryWord(i, 'next')) return;
+    }
+    if (advanceWord()) animateCard('next');
+}
+
+// 上一個：跳過已標記為學會的字，避免重新出現。
+function previousWord() {
+    stopForManualNavigation();
+    for (let i = historyIndex - 1; i >= 0; i--) {
+        if (showHistoryWord(i, 'previous')) return;
+    }
+    showSwipeHint('目前沒有上一個單字');
 }
 
 // 標記目前單字為已學會
 function markAsLearned() {
-    stopImmersive();
+    stopForManualNavigation();
     if (!currentWord) return;
 
     const confirmMark = confirm(`確定要將「${currentWord.word}」標記為已學會並排除嗎？\n(此動作下次不會再出現該字)`);
@@ -108,14 +159,14 @@ function markAsLearned() {
             learnedWords.push(currentWord.word);
             localStorage.setItem('toeic_learned_words', JSON.stringify(learnedWords));
             updateProgressUI();
-            advanceWord(); // 自動跳轉到下一個
+            if (advanceWord()) animateCard('next'); // 自動跳轉到下一個
         }
     }
 }
 
 // 重設進度
 function resetProgress() {
-    stopImmersive();
+    stopForManualNavigation();
     const words = cachedWords[currentLevel];
     const confirmReset = confirm(`確定要重設「${currentLevel}」等級的學習進度嗎？\n這將會讓所有已標記的單字重新出現。`);
 
@@ -132,7 +183,6 @@ function resetProgress() {
 // 顯示單字到網頁
 function displayWord(data) {
     document.getElementById('word').innerText = data.word || '-';
-    document.getElementById('phonetic').innerText = data.phonetic || '';
     document.getElementById('pos').innerText = posToChineseList(data.pos).join('／') || '';
     document.getElementById('meaning').innerText = data.meaning || '無解釋';
 
@@ -152,6 +202,107 @@ function displayWord(data) {
             phrasesEl.appendChild(li);
         });
     }
+
+    fitCardToViewport();
+}
+
+// 保持單字標題永遠只有一行；較長的片語只縮小標題本身。
+function fitWordOnOneLine() {
+    const word = document.getElementById('word');
+    if (!word) return;
+
+    word.style.removeProperty('font-size');
+    const availableWidth = word.clientWidth;
+    if (!availableWidth || word.scrollWidth <= availableWidth) return;
+
+    const naturalSize = parseFloat(getComputedStyle(word).fontSize);
+    const fittedSize = Math.max(12, Math.floor(naturalSize * availableWidth / word.scrollWidth * 0.97));
+    word.style.fontSize = `${fittedSize}px`;
+}
+
+// 依每張卡的實際文字量逐級壓縮，讓內容與切換列都留在同一頁。
+function fitCardToViewport() {
+    const card = document.getElementById('word-card');
+    if (!card) return;
+    if (fitFrame) cancelAnimationFrame(fitFrame);
+
+    const densityClasses = ['compact', 'extra-compact', 'micro-compact'];
+    card.classList.remove(...densityClasses);
+
+    function tryDensity(step) {
+        fitWordOnOneLine();
+        if (card.scrollHeight <= card.clientHeight + 1 || step >= densityClasses.length) {
+            fitFrame = null;
+            return;
+        }
+        card.classList.add(densityClasses[step]);
+        fitFrame = requestAnimationFrame(() => tryDensity(step + 1));
+    }
+
+    fitFrame = requestAnimationFrame(() => tryDensity(0));
+}
+
+function animateCard(direction) {
+    const card = document.getElementById('word-card');
+    if (!card) return;
+    card.classList.remove('slide-next', 'slide-previous');
+    void card.offsetWidth;
+    card.classList.add(direction === 'previous' ? 'slide-previous' : 'slide-next');
+    setTimeout(() => card.classList.remove('slide-next', 'slide-previous'), 240);
+}
+
+function showSwipeHint(message) {
+    const hint = document.getElementById('swipe-hint');
+    if (!hint) return;
+    clearTimeout(hintTimer);
+    hint.innerText = message;
+    hint.classList.add('notice');
+    hintTimer = setTimeout(() => {
+        hint.innerText = '右滑上一個 · 左滑下一個';
+        hint.classList.remove('notice');
+    }, 1600);
+}
+
+function setupCardNavigation() {
+    const card = document.getElementById('word-card');
+    if (!card) return;
+
+    let startX = 0;
+    let startY = 0;
+    let startTime = 0;
+    let tracking = false;
+
+    card.addEventListener('touchstart', (event) => {
+        if (event.touches.length !== 1 || event.target.closest('button')) return;
+        const touch = event.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        startTime = Date.now();
+        tracking = true;
+    }, { passive: true });
+
+    card.addEventListener('touchend', (event) => {
+        if (!tracking || event.changedTouches.length !== 1) return;
+        tracking = false;
+        const touch = event.changedTouches[0];
+        const deltaX = touch.clientX - startX;
+        const deltaY = touch.clientY - startY;
+        const duration = Date.now() - startTime;
+
+        if (duration <= 800 && Math.abs(deltaX) >= 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+            if (deltaX < 0) nextWord();
+            else previousWord();
+        }
+    }, { passive: true });
+
+    card.addEventListener('touchcancel', () => { tracking = false; }, { passive: true });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowLeft') previousWord();
+        if (event.key === 'ArrowRight') nextWord();
+    });
+
+    window.addEventListener('resize', fitCardToViewport);
 }
 
 let voices = [];
@@ -636,4 +787,5 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // 啟動程式
+setupCardNavigation();
 init();

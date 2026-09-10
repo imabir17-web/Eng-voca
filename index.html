@@ -25,7 +25,7 @@
         </div>
 
         <!-- 單字卡片 -->
-        <div class="card" id="word-card">
+        <div class="card" id="word-card" tabindex="0" aria-roledescription="可左右滑動的單字卡">
             <div class="card-header">
                 <h1 id="word">Loading...</h1>
                 <div class="header-tools">
@@ -46,16 +46,15 @@
                         </svg>
                     </button>
                 </div>
-                <p id="phonetic" class="phonetic">/ phonetic /</p>
             </div>
             
             <div class="card-body">
-                <div class="section">
+                <div class="section meaning-section">
                     <h3>中文解釋</h3>
                     <p id="meaning" class="meaning">點擊下方按鈕開始學習</p>
                 </div>
 
-                <div class="section">
+                <div class="section phrases-section">
                     <h3>片語 / 搭配詞</h3>
                     <ul id="phrases" class="list"></ul>
                 </div>
@@ -71,17 +70,22 @@
                     </div>
                 </div>
 
-                <div class="section">
+                <div class="section example-section">
                     <h3>例句</h3>
                     <p id="example" class="example"></p>
                     <p id="example-zh" class="example-zh"></p>
                 </div>
             </div>
+
+            <div class="swipe-nav" aria-label="切換單字">
+                <button type="button" onclick="previousWord()" class="nav-arrow" aria-label="上一個單字">‹</button>
+                <span id="swipe-hint" role="status" aria-live="polite">右滑上一個 · 左滑下一個</span>
+                <button type="button" onclick="nextWord()" class="nav-arrow" aria-label="下一個單字">›</button>
+            </div>
         </div>
 
         <!-- 操作區 -->
         <div class="actions">
-            <button onclick="nextWord()" class="next-btn">下一個單字</button>
             <button onclick="toggleImmersive()" id="immersive-btn" class="immersive-btn">開始沉浸朗讀</button>
         </div>
 
